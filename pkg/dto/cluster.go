@@ -1,6 +1,7 @@
 package dto
 
 import (
+	"encoding/json"
 	"github.com/KubeOperator/KubeOperator/pkg/constant"
 	"github.com/KubeOperator/KubeOperator/pkg/model"
 	clusterUtil "github.com/KubeOperator/KubeOperator/pkg/util/cluster"
@@ -85,6 +86,11 @@ type ClusterCreate struct {
 	MasterScheduleType string       `json:"masterScheduleType"`
 	WorkerAmount       int          `json:"workerAmount"`
 	Nodes              []NodeCreate `json:"nodes"`
+
+	// 在安装集群时候创建需要安装的插件
+	AddonPlugins []ClusterTool `json:"addonPlugins"`
+	// 初始化时传入的全局变量
+	AddonGlobals map[string]string `json:"addonGlobals"`
 }
 
 type ClusterBatch struct {
@@ -264,5 +270,12 @@ func (c ClusterCreate) ClusterCreateDto2Mo() *model.Cluster {
 	nodeMask := clusterUtil.GetNodeCIDRMaskSize(c.MaxNodePodNum)
 	cluster.SpecConf.KubeMaxPods = clusterUtil.MaxNodePodNumMap[nodeMask]
 	cluster.SpecConf.KubeNetworkNodePrefix = nodeMask
+
+	// 添加plugins
+	plugins, _ := json.Marshal(c.AddonPlugins)
+	cluster.AddonPlugins = string(plugins)
+	globals, _ := json.Marshal(c.AddonGlobals)
+	cluster.AddonGlobals = string(globals)
+
 	return &cluster
 }

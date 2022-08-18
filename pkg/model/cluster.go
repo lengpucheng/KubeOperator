@@ -34,6 +34,8 @@ type Cluster struct {
 	ProjectID     string `json:"projectID"`
 	Dirty         bool   `json:"dirty"`
 	Plan          Plan   `json:"-"`
+	AddonPlugins  string `json:"addonPlugins" gorm:"type:text(65535)"`
+	AddonGlobals  string `json:"addonGlobals" gorm:"type:text(65535)"`
 
 	SpecConf                 ClusterSpecConf          `gorm:"save_associations:false" json:"specConf"`
 	SpecRuntime              ClusterSpecRuntime       `gorm:"save_associations:false" json:"specRuntime"`
@@ -270,7 +272,7 @@ func (c Cluster) PrepareComponent(ingressType, ingressVersion, dnsCache, support
 }
 
 func (c Cluster) PrepareTools() []ClusterTool {
-	return []ClusterTool{
+	clusterTools := []ClusterTool{
 		{
 			ClusterID:    c.ID,
 			Name:         "gatekeeper",
@@ -362,6 +364,13 @@ func (c Cluster) PrepareTools() []ClusterTool {
 			Architecture: supportedArchitectureAll,
 		},
 	}
+	// 加入plugins
+	if GetAddonPlugins().Spec.Plugins != nil {
+		for _, plugins := range GetAddonPlugins().Spec.Plugins {
+			clusterTools = append(clusterTools, plugins.ToClusterTool(c.ID))
+		}
+	}
+	return clusterTools
 }
 
 func (c Cluster) GetKobeVars() map[string]string {

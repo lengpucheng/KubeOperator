@@ -115,6 +115,9 @@ func (c clusterInitService) Init(cluster model.Cluster, writer io.Writer) {
 			if err := c.loadTools(&cluster); err != nil {
 				logger.Log.Infof("load tool failed, err: %v!", err)
 			}
+			// addon plugins
+			// TODO 加载插件
+
 			cancel()
 			err := c.GatherKubernetesToken(cluster)
 			if err != nil {

@@ -1,0 +1,85 @@
+kind: addonPluginsManifest
+apiVersion: v1
+spec:
+  # 全局参数，将会写入到ansible hosts执行playbook的全局变量中
+  globals:
+    isString: '222'
+    isNumber: 30
+    isBoolean: true
+  # 插件 该部分会在集群创建时候被写入到应用库中
+  plugins:
+    - name: add-nfs
+        metadata:
+          # 对应CTD
+          architecture: all
+          version: v1.05
+          # 对应CT
+          describe: "简介"
+          logo: nfs.jpg
+          # 将对应default_vars
+          addonType: ansible
+          # ansible 为ansible playbookName helm 为 chartName
+          resource: 05-addon-version
+          isInit: true
+        # 当类型为helm时候的字段
+        helm:
+          workloadType: stsOrDeploy
+          workloadName: name
+          serviceName: serviceName
+          IngressPort: 80
+        # 索引 在前端展示出来的选项卡
+        schema:
+          addonType: number
+          resource: string
+        # 将合并vars 到 ctd的vars中 使用${AddonRepo}可以动态替换为当前ko仓库
+        vars: { }
+    - name: add-nfs
+        metadata:
+          # 对应CTD
+          architecture: all
+          version: v1.05
+          # 对应CT
+          describe: "简介"
+          logo: nfs.jpg
+          # 将对应default_vars
+          addonType: ansible
+          # ansible 为ansible playbookName helm 为 chartName
+          resource: 05-addon-version
+          isInit: true
+        # 当类型为helm时候的字段
+        helm:
+          workloadType: stsOrDeploy
+          workloadName: name
+          serviceName: serviceName
+          IngressPort: 80
+        # 索引 在前端展示出来的选项卡
+        schema:
+          addonType: number
+          resource: string
+        # 将合并vars 到 ctd的vars中 使用${AddonRepo}可以动态替换为当前ko仓库
+        vars: { }
+    - name: add-nfs
+        metadata:
+          # 对应CTD
+          architecture: all
+          version: v1.05
+          # 对应CT
+          describe: "简介"
+          logo: nfs.jpg
+          # 将对应default_vars
+          addonType: ansible
+          # ansible 为ansible playbookName helm 为 chartName
+          resource: 05-addon-version
+          isInit: true
+        # 当类型为helm时候的字段
+        helm:
+          workloadType: stsOrDeploy
+          workloadName: name
+          serviceName: serviceName
+          IngressPort: 80
+        # 索引 在前端展示出来的选项卡
+        schema:
+          addonType: number
+          resource: string
+        # 将合并vars 到 ctd的vars中 使用${AddonRepo}可以动态替换为当前ko仓库
+        vars: { }

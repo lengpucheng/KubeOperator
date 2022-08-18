@@ -94,6 +94,16 @@ func NewAnsibleHelper(cluster model.Cluster, writer ...io.Writer) *AnsibleHelper
 			c.Kobe.SetVar(k, v)
 		}
 	}
+	// 设置自定义的vars
+	if len(cluster.AddonGlobals) > 5 {
+		addonGlobals := map[string]string{}
+		if err := json.Unmarshal([]byte(cluster.AddonGlobals), &addonGlobals); err == nil {
+			for k, v := range addonGlobals {
+				c.Kobe.SetVar(fmt.Sprintf("addon_plugin_%s", k), v)
+			}
+		}
+	}
+
 	return c
 }
 

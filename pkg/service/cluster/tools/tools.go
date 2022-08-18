@@ -123,8 +123,9 @@ func NewClusterTool(tool *model.ClusterTool, cluster model.Cluster, availableHos
 		return NewChartmuseum(c, tool)
 	case "kubeapps":
 		return NewKubeapps(c, tool)
+	default:
+		return NewAddonPluginsTool(c, tool)
 	}
-	return nil, nil
 }
 
 func MergeValueMap(source map[string]interface{}) (map[string]interface{}, error) {
