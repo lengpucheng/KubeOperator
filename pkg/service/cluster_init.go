@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/KubeOperator/KubeOperator/pkg/dto"
 	"io"
 	"time"
 
@@ -32,6 +33,7 @@ func NewClusterInitService() ClusterInitService {
 		taskLogService:     NewTaskLogService(),
 		clusterIaasService: NewClusterIaasService(),
 		msgService:         NewMsgService(),
+		toolService:        NewClusterToolService(),
 	}
 }
 
@@ -43,6 +45,7 @@ type clusterInitService struct {
 	taskLogService     TaskLogService
 	clusterIaasService ClusterIaasService
 	msgService         MsgService
+	toolService        ClusterToolService
 }
 
 func (c clusterInitService) Init(cluster model.Cluster, writer io.Writer) {
@@ -115,9 +118,6 @@ func (c clusterInitService) Init(cluster model.Cluster, writer io.Writer) {
 			if err := c.loadTools(&cluster); err != nil {
 				logger.Log.Infof("load tool failed, err: %v!", err)
 			}
-			// addon plugins
-			// TODO 加载插件
-
 			cancel()
 			err := c.GatherKubernetesToken(cluster)
 			if err != nil {
@@ -166,6 +166,13 @@ func (c clusterInitService) loadTools(cluster *model.Cluster) error {
 		tx.Rollback()
 		return fmt.Errorf("unmarshal manifest.toolvar error %s", err.Error())
 	}
+
+	// 加载预装的plugins
+	plugins := *new([]model.ClusterTool)
+	if err := json.Unmarshal([]byte(cluster.AddonPlugins), &plugins); err != nil {
+		_ = fmt.Errorf("resolve plugins fial the cluster name is %s ,error is %s ,plugins json is :\n %s", cluster.Name, err.Error(), cluster.AddonPlugins)
+	}
+
 	for _, tool := range cluster.PrepareTools() {
 		for _, item := range toolVars {
 			if tool.Name == item.Name {
@@ -174,12 +181,33 @@ func (c clusterInitService) loadTools(cluster *model.Cluster) error {
 			}
 		}
 		err := tx.Create(&tool).Error
+		// 获取plugins的id
+		for i, plugin := range plugins {
+			if plugin.Name == tool.Name {
+				tool.Vars = plugin.Vars
+				plugins[i] = tool
+			}
+		}
 		if err != nil {
 			tx.Rollback()
 			return fmt.Errorf("can not prepare cluster tool %s reason %s", tool.Name, err.Error())
 		}
 	}
 	tx.Commit()
+
+	// 安装plugins
+	globals := map[string]string{}
+	_ = json.Unmarshal([]byte(cluster.AddonGlobals), &globals)
+	for _, tool := range plugins {
+		vars := map[string]interface{}{}
+		_ = json.Unmarshal([]byte(tool.Vars), &vars)
+		for k, v := range globals {
+			vars[k] = v
+		}
+		if _, err := c.toolService.Enable(cluster.Name, dto.ClusterTool{ClusterTool: tool, Vars: vars}); err != nil {
+			_ = fmt.Errorf("install plugins  %s fial ,error is %s, vars is :\n%s", tool.Name, err.Error(), tool.Vars)
+		}
+	}
 
 	return nil
 }

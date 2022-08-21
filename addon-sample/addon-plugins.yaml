@@ -3,83 +3,54 @@ apiVersion: v1
 spec:
   # 全局参数，将会写入到ansible hosts执行playbook的全局变量中
   globals:
-    isString: '222'
-    isNumber: 30
-    isBoolean: true
+    isTestAnsible: true
+    isTestHelm: true
+    isTestName: addon-plugins
+    isTestVersion: 40
   # 插件 该部分会在集群创建时候被写入到应用库中
   plugins:
-    - name: add-nfs
-        metadata:
-          # 对应CTD
-          architecture: all
-          version: v1.05
-          # 对应CT
-          describe: "简介"
-          logo: nfs.jpg
-          # 将对应default_vars
-          addonType: ansible
-          # ansible 为ansible playbookName helm 为 chartName
-          resource: 05-addon-version
-          isInit: true
-        # 当类型为helm时候的字段
-        helm:
-          workloadType: stsOrDeploy
-          workloadName: name
-          serviceName: serviceName
-          IngressPort: 80
-        # 索引 在前端展示出来的选项卡
-        schema:
-          addonType: number
-          resource: string
-        # 将合并vars 到 ctd的vars中 使用${AddonRepo}可以动态替换为当前ko仓库
-        vars: { }
-    - name: add-nfs
-        metadata:
-          # 对应CTD
-          architecture: all
-          version: v1.05
-          # 对应CT
-          describe: "简介"
-          logo: nfs.jpg
-          # 将对应default_vars
-          addonType: ansible
-          # ansible 为ansible playbookName helm 为 chartName
-          resource: 05-addon-version
-          isInit: true
-        # 当类型为helm时候的字段
-        helm:
-          workloadType: stsOrDeploy
-          workloadName: name
-          serviceName: serviceName
-          IngressPort: 80
-        # 索引 在前端展示出来的选项卡
-        schema:
-          addonType: number
-          resource: string
-        # 将合并vars 到 ctd的vars中 使用${AddonRepo}可以动态替换为当前ko仓库
-        vars: { }
-    - name: add-nfs
-        metadata:
-          # 对应CTD
-          architecture: all
-          version: v1.05
-          # 对应CT
-          describe: "简介"
-          logo: nfs.jpg
-          # 将对应default_vars
-          addonType: ansible
-          # ansible 为ansible playbookName helm 为 chartName
-          resource: 05-addon-version
-          isInit: true
-        # 当类型为helm时候的字段
-        helm:
-          workloadType: stsOrDeploy
-          workloadName: name
-          serviceName: serviceName
-          IngressPort: 80
-        # 索引 在前端展示出来的选项卡
-        schema:
-          addonType: number
-          resource: string
-        # 将合并vars 到 ctd的vars中 使用${AddonRepo}可以动态替换为当前ko仓库
-        vars: { }
+    - name: test-ansible
+      metadata:
+        # 对应CTD
+        architecture: all
+        version: v1.0
+        # 对应CT
+        describe: "测试ansible-tool小工具"
+        addonType: ansible
+        # ansible 为ansible playbookName / helm 为 chartName
+        # addon_plugin_action 参数有 install uninstall upgrade 三种值 分别对应三种状态
+        addonResource: 99-test-ansible.yml
+      # 将合并vars 到 ctd的vars中 使用${AddonRepo}可以动态替换为当前ko仓库
+      vars:
+        ansibleParameter1: test-ansible
+        ansibleParameter2: 30
+        ansibleParameter3: /root/ansible-test.txt
+    - name: test-helm
+      metadata:
+        architecture: all
+        version: 2.13.0
+        # 对应CT
+        describe: "简介"
+        logo: chartmuseum.png
+        # 将对应default_vars
+        addonType: helm
+        # ansible 为ansible playbookName helm 为 chartName
+        addonResource: nexus/chartmuseum
+      # 当类型为helm时候的字段
+      helm:
+        workloadType: deploy
+        # 通常情况下一般为 name-chartName
+        workloadName: test-helm-chartmuseum
+        serviceName: test-helm-chartmuseum
+        ingressPort: 8080
+      # 索引 在前端展示出来的选项卡
+      schema:
+        image.tag: v0.12.0
+        env.open.DISABLE_API: false
+        namespace: kube-operator
+      # 将合并vars 到 ctd的vars中 使用${AddonRepo}可以动态替换为当前ko仓库
+      vars:
+        namespace: kube-operator
+        image.repository: ${AddonRepo}/kubeoperator/chartmuseum
+        image.tag: v0.12.0
+        env.open.DISABLE_API: false

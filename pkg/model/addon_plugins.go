@@ -17,6 +17,7 @@ import (
 	"github.com/KubeOperator/KubeOperator/pkg/db"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
+	"reflect"
 	"strings"
 )
 
@@ -39,30 +40,18 @@ const (
 	AddonPluginHelmMinReplicas  = "addon.plugin.helm.minreplicas"
 )
 
-var addonPlugins *AddonPluginsManifest
-
-func GetAddonPlugins() AddonPluginsManifest {
-	if addonPlugins == nil {
-		plugins, err := loadAddonPlugins()
-		if err == nil && plugins != nil {
-			*addonPlugins = *plugins
-		}
-	}
-	return *addonPlugins
-}
-
 type AddonPluginsManifest struct {
 	Kind       string `json:"kind"`
-	ApiVersion string `json:"apiVersion"`
+	ApiVersion string `json:"apiVersion" yaml:"apiVersion"`
 	Spec       struct {
-		Global  map[string]string `json:"globals"`
-		Plugins []AddonPlugin     `json:"plugins"`
+		Globals map[string]interface{} `json:"globals"`
+		Plugins []AddonPlugin          `json:"plugins"`
 	} `json:"spec"`
 }
 type AddonPlugin struct {
 	Name     string                 `json:"name"`
 	Metadata Metadata               `json:"metadata"`
-	Schema   map[string]interface{} `json:"Schema"`
+	Schema   map[string]interface{} `json:"schema"`
 	Helm     AddonHelm              `json:"helm"`
 	Vars     map[string]interface{} `json:"vars"`
 }
@@ -71,16 +60,16 @@ type Metadata struct {
 	Logo          string `json:"logo"`
 	Architecture  string `json:"architecture"`
 	Version       string `json:"version"`
-	IsInit        bool   `json:"isInit"`
-	AddonType     string `json:"addonType"`
-	AddonResource string `json:"addonResource"`
+	IsInit        bool   `json:"isInit" yaml:"isInit"`
+	AddonType     string `json:"addonType" yaml:"addonType"`
+	AddonResource string `json:"addonResource" yaml:"addonResource"`
 }
 type AddonHelm struct {
-	WorkloadName string `json:"workloadName"`
-	WorkloadType string `json:"workloadType"`
-	MinReplicas  int    `json:"minReplicas"`
-	ServiceName  string `json:"serviceName"`
-	IngressPort  int    `json:"ingressPort"`
+	WorkloadName string `json:"workloadName" yaml:"workloadName"`
+	WorkloadType string `json:"workloadType" yaml:"workloadType"`
+	MinReplicas  int    `json:"minReplicas" yaml:"minReplicas"`
+	ServiceName  string `json:"serviceName" yaml:"serviceName"`
+	IngressPort  int    `json:"ingressPort" yaml:"ingressPort"`
 }
 
 func (addon *AddonPlugin) ToClusterToolDetail() ClusterToolDetail {
@@ -137,52 +126,66 @@ func (addon *AddonPlugin) toAddonParameter(vars map[string]interface{}) string {
 	return string(data)
 }
 
-func loadAddonPlugins() (*AddonPluginsManifest, error) {
-	var manifest *AddonPluginsManifest
+var addonPlugins AddonPluginsManifest
 
-	data, err := ioutil.ReadFile(AddonPluginsFileJson)
-	if err != nil {
-		data, err = ioutil.ReadFile(AddonPluginsFileYaml)
-		if err != nil {
-			return manifest, err
-		}
-		err = yaml.Unmarshal(data, manifest)
-	} else {
-		err = json.Unmarshal(data, manifest)
+func GetAddonPlugins() AddonPluginsManifest {
+	if reflect.DeepEqual(addonPlugins, AddonPluginsManifest{}) {
+		_, _ = LoadAddonPlugins()
 	}
-	// 写入ctd
-	if manifest.Spec.Plugins != nil {
-		tx := db.DB.Begin()
-		var toolDetails []ClusterToolDetail
-		if err := tx.Find(&toolDetails).Error; err != nil {
-			tx.Rollback()
+	return addonPlugins
+}
+
+func LoadAddonPlugins() (AddonPluginsManifest, error) {
+	var manifest AddonPluginsManifest
+	var err error
+	var data []byte
+
+	if data, err = ioutil.ReadFile(AddonPluginsFileJson); err != nil {
+		if data, err = ioutil.ReadFile(AddonPluginsFileYaml); err != nil {
 			return manifest, err
 		}
-		for _, plugin := range manifest.Spec.Plugins {
-			detail := plugin.ToClusterToolDetail()
-			for i, td := range toolDetails {
-				if td.Name == detail.Name {
-					detail.ID = td.ID
-					if err := tx.Model(&td).Update(detail).Error; err != nil {
-						tx.Rollback()
-						return manifest, err
-					}
-					break
-				} else if i == len(toolDetails)-1 {
-					if err := tx.Create(&detail).Error; err != nil {
-						tx.Rollback()
-						return manifest, err
+		err = yaml.Unmarshal(data, &manifest)
+	} else {
+		err = json.Unmarshal(data, &manifest)
+	}
+
+	if err == nil {
+		// 更新cache
+		addonPlugins = manifest
+		// 写入ctd
+		if manifest.Spec.Plugins != nil && db.DB != nil {
+			tx := db.DB.Begin()
+			var toolDetails []ClusterToolDetail
+			if err := tx.Find(&toolDetails).Error; err != nil {
+				tx.Rollback()
+				return manifest, err
+			}
+			for _, plugin := range manifest.Spec.Plugins {
+				detail := plugin.ToClusterToolDetail()
+				for i, td := range toolDetails {
+					if td.Name == detail.Name {
+						detail.ID = td.ID
+						if err := tx.Model(&td).Update(detail).Error; err != nil {
+							tx.Rollback()
+							return manifest, err
+						}
+						break
+					} else if i == len(toolDetails)-1 {
+						if err := tx.Create(&detail).Error; err != nil {
+							tx.Rollback()
+							return manifest, err
+						}
 					}
 				}
 			}
+			tx.Commit()
+
 		}
-		tx.Commit()
 	}
+
 	return manifest, err
 }
 
 func init() {
-	if plugins, err := loadAddonPlugins(); err != nil && plugins != nil {
-		*addonPlugins = *plugins
-	}
+	_, _ = LoadAddonPlugins()
 }

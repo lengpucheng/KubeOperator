@@ -44,7 +44,7 @@ func NewAddonPluginAnsible(cluster *Cluster, tool *model.ClusterTool, playbook s
 	}, nil
 }
 
-func (a AddonPluginAnsible) Install(toolDetail model.ClusterToolDetail) error {
+func (a *AddonPluginAnsible) Install(toolDetail model.ClusterToolDetail) error {
 	if err := a.setDefaultVars(toolDetail); err != nil {
 		return err
 	}
@@ -57,7 +57,7 @@ func (a AddonPluginAnsible) Install(toolDetail model.ClusterToolDetail) error {
 	return phases.RunPlaybookAndGetResult(adm, a.playbook, "", writer)
 }
 
-func (a AddonPluginAnsible) Upgrade(toolDetail model.ClusterToolDetail) error {
+func (a *AddonPluginAnsible) Upgrade(toolDetail model.ClusterToolDetail) error {
 	if err := a.setDefaultVars(toolDetail); err != nil {
 		return err
 	}
@@ -70,7 +70,7 @@ func (a AddonPluginAnsible) Upgrade(toolDetail model.ClusterToolDetail) error {
 	return phases.RunPlaybookAndGetResult(adm, a.playbook, "", writer)
 }
 
-func (a AddonPluginAnsible) Uninstall() error {
+func (a *AddonPluginAnsible) Uninstall() error {
 	if err := a.setDefaultVars(); err != nil {
 		return err
 	}
@@ -83,7 +83,12 @@ func (a AddonPluginAnsible) Uninstall() error {
 	return phases.RunPlaybookAndGetResult(adm, a.playbook, "", writer)
 }
 
-func (a AddonPluginAnsible) setDefaultVars(toolDetails ...model.ClusterToolDetail) error {
+func (a *AddonPluginAnsible) setDefaultVars(toolDetails ...model.ClusterToolDetail) error {
+	// 取出参数
+	vars := map[string]interface{}{}
+	if err := json.Unmarshal([]byte(a.Tool.Vars), &vars); err != nil {
+		return err
+	}
 	if toolDetails != nil && len(toolDetails) > 0 {
 		toolDetail := toolDetails[0]
 		// 取出默认值
@@ -91,19 +96,12 @@ func (a AddonPluginAnsible) setDefaultVars(toolDetails ...model.ClusterToolDetai
 		if err := json.Unmarshal([]byte(toolDetail.Vars), &defVar); err != nil {
 			return err
 		}
-		// 取出参数
-		vars := map[string]interface{}{}
-		if err := json.Unmarshal([]byte(a.Tool.Vars), &vars); err != nil {
-			return err
-		}
-
 		// 当该默认值不存在时设置默认值
 		for k, v := range defVar {
 			if _, p := vars[k]; !p {
 				vars[k] = v
 			}
 		}
-		a.vars = vars
 		marshal, err := json.Marshal(vars)
 		if err != nil {
 			return err
@@ -111,11 +109,14 @@ func (a AddonPluginAnsible) setDefaultVars(toolDetails ...model.ClusterToolDetai
 		a.Tool.Vars = string(marshal)
 	}
 	// 插值替换
-	strings.ReplaceAll(a.Tool.Vars, "${AddonRepo}", fmt.Sprintf("%s:%d", a.LocalHostName, a.LocalRepositoryPort))
+	a.Tool.Vars = strings.ReplaceAll(a.Tool.Vars, "${AddonRepo}", fmt.Sprintf("%s:%d", a.LocalHostName, a.LocalRepositoryPort))
+	if err := json.Unmarshal([]byte(a.Tool.Vars), &a.vars); err != nil {
+		a.vars = vars
+	}
 	return nil
 }
 
-func (a AddonPluginAnsible) initKobe() *kobe.Kobe {
+func (a *AddonPluginAnsible) initKobe() *kobe.Kobe {
 	adm := kobe.NewAnsible(&kobe.Config{
 		Inventory: a.Cluster.ParseInventory(),
 	})
@@ -125,22 +126,21 @@ func (a AddonPluginAnsible) initKobe() *kobe.Kobe {
 	return adm
 }
 
-func (a AddonPluginAnsible) initWrite() (writer io.Writer, err error) {
+func (a *AddonPluginAnsible) initWrite() (writer io.Writer, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			writer, err = ansible.CreateAnsibleLogWriterWithId(a.Cluster.Name, a.Cluster.ID)
+			writer, err = ansible.CreateAnsibleLogWriterWithId(a.Cluster.Name, a.Tool.Name)
 		}
 	}()
 
 	// 初始化writer
 	if a.writerPoint == 0 {
-		if writer, err = ansible.CreateAnsibleLogWriterWithId(a.Cluster.Name, a.Cluster.ID); err != nil {
-			return writer, err
+		if writer, err = ansible.CreateAnsibleLogWriterWithId(a.Cluster.Name, a.Tool.Name); err != nil {
+			return
 		}
 	} else {
 		writer = *(*io.Writer)(unsafe.Pointer(uintptr(a.writerPoint)))
-		//_, err := writer.Write([]byte(""))
 	}
 
-	return writer, err
+	return
 }

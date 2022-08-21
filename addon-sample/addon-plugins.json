@@ -1,0 +1,57 @@
+{
+  "kind": "addonPluginsManifest",
+  "apiVersion": "v1",
+  "spec": {
+    "globals": {
+      "isTestAnsible": true,
+      "isTestHelm": true,
+      "isTestName": "addon-plugins",
+      "isTestVersion": 40
+    },
+    "plugins": [
+      {
+        "name": "test-ansible",
+        "metadata": {
+          "architecture": "all",
+          "version": "v1.0",
+          "describe": "测试ansible-tool小工具",
+          "addonType": "ansible",
+          "addonResource": "99-test-ansible.yml"
+        },
+        "vars": {
+          "ansibleParameter1": "test-ansible",
+          "ansibleParameter2": 30,
+          "ansibleParameter3": "/root/ansible-test.txt"
+        }
+      },
+      {
+        "name": "test-helm",
+        "metadata": {
+          "architecture": "all",
+          "version": "2.13.0",
+          "describe": "简介",
+          "logo": "chartmuseum.png",
+          "addonType": "helm",
+          "addonResource": "nexus/chartmuseum"
+        },
+        "helm": {
+          "workloadType": "deploy",
+          "workloadName": "test-helm-chartmuseum",
+          "serviceName": "test-helm-chartmuseum",
+          "ingressPort": 8080
+        },
+        "schema": {
+          "image.tag": "v0.12.0",
+          "env.open.DISABLE_API": false,
+          "namespace": "kube-operator"
+        },
+        "vars": {
+          "namespace": "kube-operator",
+          "image.repository": "${AddonRepo}/kubeoperator/chartmuseum",
+          "image.tag": "v0.12.0",
+          "env.open.DISABLE_API": false
+        }
+      }
+    ]
+  }
+}

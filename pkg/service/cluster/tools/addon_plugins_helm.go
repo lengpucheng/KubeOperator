@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"github.com/KubeOperator/KubeOperator/pkg/constant"
 	"github.com/KubeOperator/KubeOperator/pkg/model"
+	"strconv"
 	"strings"
 )
 
@@ -43,7 +44,7 @@ func NewAddonPluginHelm(cluster *Cluster, tool *model.ClusterTool, chartName str
 	}, nil
 }
 
-func (a AddonPluginHelm) Install(toolDetail model.ClusterToolDetail) error {
+func (a *AddonPluginHelm) Install(toolDetail model.ClusterToolDetail) error {
 	if err := a.setDefaultVars(toolDetail); err != nil {
 		return err
 	}
@@ -77,19 +78,19 @@ func (a AddonPluginHelm) Install(toolDetail model.ClusterToolDetail) error {
 	}
 }
 
-func (a AddonPluginHelm) Upgrade(toolDetail model.ClusterToolDetail) error {
+func (a *AddonPluginHelm) Upgrade(toolDetail model.ClusterToolDetail) error {
 	if err := a.setDefaultVars(toolDetail); err != nil {
 		return err
 	}
 	return upgradeChart(a.Cluster.HelmClient, a.Tool, a.chartName, toolDetail.ChartVersion)
 }
 
-func (a AddonPluginHelm) Uninstall() error {
+func (a *AddonPluginHelm) Uninstall() error {
 	return uninstall(a.Cluster.Namespace, a.Tool, fmt.Sprintf("%s-ingress", a.Tool.Name), a.Cluster.Version, a.Cluster.HelmClient, a.Cluster.KubeClient)
 
 }
 
-func (a AddonPluginHelm) setDefaultVars(toolDetail model.ClusterToolDetail) error {
+func (a *AddonPluginHelm) setDefaultVars(toolDetail model.ClusterToolDetail) error {
 	// 取出默认值
 	defVar := map[string]interface{}{}
 	if err := json.Unmarshal([]byte(toolDetail.Vars), &defVar); err != nil {
@@ -114,15 +115,20 @@ func (a AddonPluginHelm) setDefaultVars(toolDetail model.ClusterToolDetail) erro
 	a.Tool.Vars = string(marshal)
 
 	// 插值替换
-	strings.ReplaceAll(a.Tool.Vars, "${AddonRepo}", fmt.Sprintf("%s:%d", a.LocalHostName, a.LocalRepositoryPort))
+	a.Tool.Vars = strings.ReplaceAll(a.Tool.Vars, "${AddonRepo}", fmt.Sprintf("%s:%d", a.LocalHostName, a.LocalRepositoryPort))
 	a.serviceName, _ = vars[model.AddonPluginHelmServiceName].(string)
-	a.ingressPort, _ = vars[model.AddonPluginHelmIngressPort].(int)
+	a.ingressPort = var2Int(vars[model.AddonPluginHelmIngressPort])
 	a.workloadType, _ = vars[model.AddonPluginHelmWorkloadType].(string)
 	a.workloadName, _ = vars[model.AddonPluginHelmWorkloadName].(string)
-	a.workloadMinR, _ = vars[model.AddonPluginHelmMinReplicas].(int)
+	a.workloadMinR = var2Int(vars[model.AddonPluginHelmMinReplicas])
 
 	if a.workloadName == "" || a.workloadType == "" || a.ingressPort == 0 {
 		return errors.New("The addon plugin helm workloadType or workloadName or ingressPort is not exist , please check manifest file ")
 	}
 	return nil
+}
+
+func var2Int(va interface{}) int {
+	parseInt, _ := strconv.Atoi(fmt.Sprintf("%v", va))
+	return parseInt
 }

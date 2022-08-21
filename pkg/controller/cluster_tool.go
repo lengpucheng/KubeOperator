@@ -2,6 +2,7 @@ package controller
 
 import (
 	"fmt"
+	"github.com/KubeOperator/KubeOperator/pkg/model"
 
 	"github.com/KubeOperator/KubeOperator/pkg/constant"
 	"github.com/KubeOperator/KubeOperator/pkg/controller/kolog"
@@ -20,6 +21,10 @@ func NewClusterToolController() *ClusterToolController {
 	return &ClusterToolController{
 		ClusterToolService: service.NewClusterToolService(),
 	}
+}
+
+func (c ClusterToolController) GetPlugins() (model.AddonPluginsManifest, error) {
+	return model.LoadAddonPlugins()
 }
 
 func (c ClusterToolController) GetBy(clusterName string) ([]dto.ClusterTool, error) {
